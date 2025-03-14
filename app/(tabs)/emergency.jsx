@@ -4,6 +4,7 @@ import * as Location from 'expo-location';
 
 const Emergency = () => {
   const [location, setLocation] = useState(null);
+  const [streetName, setStreetName] = useState('Fetching street name...');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -18,6 +19,35 @@ const Emergency = () => {
 
       let loc = await Location.getCurrentPositionAsync({});
       setLocation(loc.coords);
+
+      // Reverse geocode to get address
+      try {
+        let address = await Location.reverseGeocodeAsync({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        });
+
+        console.log("Full reverse geocode response:", address); // Log full response
+
+        if (address.length > 0) {
+          const place = address[0];
+
+          setStreetName(
+            place.street ||
+            place.name ||
+            place.district ||
+            place.city ||
+            place.region ||
+            'Unknown location'
+          );
+        } else {
+          setStreetName('Unknown location');
+        }
+      } catch (error) {
+        console.error('Reverse geocoding error:', error);
+        setStreetName('Unknown location');
+      }
+
       setLoading(false);
     })();
   }, []);
@@ -30,7 +60,8 @@ const Emergency = () => {
       {location && (
         <Text style={styles.location}>
           Latitude: {location.latitude} {'\n'}
-          Longitude: {location.longitude}
+          Longitude: {location.longitude} {'\n'}
+          Street: {streetName}
         </Text>
       )}
     </View>
@@ -62,4 +93,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
- 
