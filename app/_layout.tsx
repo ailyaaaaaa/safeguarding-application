@@ -5,6 +5,9 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
+import React from 'react';
+import MapView from 'react-native-maps';
+import { StyleSheet, View } from 'react-native';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 

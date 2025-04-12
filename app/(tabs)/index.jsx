@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import * as Location from 'expo-location';
+import MapView from 'react-native-maps';
 
 // Function to calculate square coordinates
 function getSquareCoordinates(lat, lon, size) {
@@ -33,6 +34,8 @@ const Index = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    let locationSubscription;
+
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -41,16 +44,34 @@ const Index = () => {
         return;
       }
 
-      let loc = await Location.getCurrentPositionAsync({});
-      setLocation(loc.coords);
-
-      const squareCoords = getSquareCoordinates(loc.coords.latitude, loc.coords.longitude, 500);
-      
-      fetchCrimes(squareCoords).then(data => setCrimeData(data));
-
-      setLoading(false);
+      // Start watching the user's location
+      locationSubscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 1000, // Update every second
+          distanceInterval: 1, // Update every meter
+        },
+        (newLocation) => {
+          setLocation(newLocation.coords);
+          setLoading(false);
+        }
+      );
     })();
+
+    // Clean up the subscription on component unmount
+    return () => {
+      if (locationSubscription) {
+        locationSubscription.remove();
+      }
+    };
   }, []);
+
+  useEffect(() => {
+    if (location) {
+      const squareCoords = getSquareCoordinates(location.latitude, location.longitude, 500);
+      fetchCrimes(squareCoords).then(data => setCrimeData(data));
+    }
+  }, [location]);
 
   async function fetchCrimes(squareCoords) {
     const date = '2024-01';
@@ -74,20 +95,31 @@ const Index = () => {
       return null;
     }
   }
-  
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Map</Text>
       {loading && <ActivityIndicator size="large" color="blue" />}
       {error && <Text style={styles.error}>{error}</Text>}
-      {location && (
+      {/* {location && (
         <Text style={styles.location}>
           Latitude: {location.latitude} {'\n'}
           Longitude: {location.longitude}
         </Text>
-      )}
+      )} */}
       {crimeData && <Text style={styles.crime}>Crimes Found: {crimeData.length}</Text>}
+      {location && (
+        <MapView
+          style={styles.map}
+          region={{
+            latitude: location.latitude,
+            longitude: location.longitude,
+            latitudeDelta: 0.01, // Smaller delta for a closer zoom
+            longitudeDelta: 0.01,
+          }}
+          showsUserLocation={true} // Show the user's location with the default blue dot
+        />
+      )}
     </View>
   );
 };
@@ -101,10 +133,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+  map: {
+    width: '80%',
+    height: '70%',
+  },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 10,
   },
   location: {
     fontSize: 18,
@@ -120,6 +156,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: 'blue',
     textAlign: 'center',
-    marginTop: 10,
+    marginBottom: 10,
   },
 });
