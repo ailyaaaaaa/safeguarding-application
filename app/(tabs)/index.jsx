@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import * as Location from 'expo-location';
-import MapView from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 
 // Function to calculate square coordinates
 function getSquareCoordinates(lat, lon, size) {
@@ -30,7 +30,7 @@ function getSquareCoordinates(lat, lon, size) {
 const Index = () => {
   const [location, setLocation] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [crimeData, setCrimeData] = useState(null);
+  const [crimeData, setCrimeData] = useState([]);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -68,8 +68,11 @@ const Index = () => {
 
   useEffect(() => {
     if (location) {
-      const squareCoords = getSquareCoordinates(location.latitude, location.longitude, 500);
-      fetchCrimes(squareCoords).then(data => setCrimeData(data));
+      const squareCoords = getSquareCoordinates(location.latitude, location.longitude, 1500);
+      fetchCrimes(squareCoords).then(data => {
+        console.log("Crime data length:", data.length);
+        setCrimeData(data);
+      });
     }
   }, [location]);
 
@@ -88,11 +91,11 @@ const Index = () => {
         throw new Error(`API responded with status ${response.status}`);
       }
       const data = await response.json();
-      console.log("Crime data:", data);
+      //console.log("Crime data:", data);
       return data;
     } catch (error) {
       console.error('Error fetching crime data:', error);
-      return null;
+      return [];
     }
   }
 
@@ -101,12 +104,6 @@ const Index = () => {
       <Text style={styles.title}>Map</Text>
       {loading && <ActivityIndicator size="large" color="blue" />}
       {error && <Text style={styles.error}>{error}</Text>}
-      {/* {location && (
-        <Text style={styles.location}>
-          Latitude: {location.latitude} {'\n'}
-          Longitude: {location.longitude}
-        </Text>
-      )} */}
       {crimeData && <Text style={styles.crime}>Crimes Found: {crimeData.length}</Text>}
       {location && (
         <MapView
@@ -118,7 +115,21 @@ const Index = () => {
             longitudeDelta: 0.01,
           }}
           showsUserLocation={true} // Show the user's location with the default blue dot
-        />
+        >
+          {crimeData.map((crime, index) => {
+            const latitude = parseFloat(crime.location.latitude) + index * 0.0001; // Slight offset
+            const longitude = parseFloat(crime.location.longitude) + index * 0.0001; // Slight offset
+            //console.log(`Crime ${index}:`, latitude, longitude);
+            return (
+              <Marker
+                key={crime.id} // Use a unique identifier if available
+                coordinate={{ latitude, longitude }}
+                title={crime.category}
+                description={crime.location.street.name}
+              />
+            );
+          })}
+        </MapView>
       )}
     </View>
   );
