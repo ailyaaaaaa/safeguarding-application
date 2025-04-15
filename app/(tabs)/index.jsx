@@ -32,6 +32,7 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [crimeData, setCrimeData] = useState([]);
   const [error, setError] = useState(null);
+  const [mapRegion, setMapRegion] = useState(null);
 
   useEffect(() => {
     let locationSubscription;
@@ -54,6 +55,16 @@ const Index = () => {
         (newLocation) => {
           setLocation(newLocation.coords);
           setLoading(false);
+
+          // Set the initial map region if it's not set yet
+          if (!mapRegion) {
+            setMapRegion({
+              latitude: newLocation.coords.latitude,
+              longitude: newLocation.coords.longitude,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            });
+          }
         }
       );
     })();
@@ -64,7 +75,7 @@ const Index = () => {
         locationSubscription.remove();
       }
     };
-  }, []);
+  }, [mapRegion]);
 
   useEffect(() => {
     if (location) {
@@ -105,15 +116,11 @@ const Index = () => {
       {loading && <ActivityIndicator size="large" color="blue" />}
       {error && <Text style={styles.error}>{error}</Text>}
       {crimeData && <Text style={styles.crime}>Crimes Found: {crimeData.length}</Text>}
-      {location && (
+      {mapRegion && (
         <MapView
           style={styles.map}
-          region={{
-            latitude: location.latitude,
-            longitude: location.longitude,
-            latitudeDelta: 0.01, // Smaller delta for a closer zoom
-            longitudeDelta: 0.01,
-          }}
+          region={mapRegion}
+          onRegionChangeComplete={setMapRegion} // Update mapRegion when the user moves the map
           showsUserLocation={true} // Show the user's location with the default blue dot
         >
           {crimeData.map((crime, index) => {
