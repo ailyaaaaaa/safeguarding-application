@@ -81,7 +81,7 @@ const Index = () => {
     if (location) {
       const squareCoords = getSquareCoordinates(location.latitude, location.longitude, 1500);
       fetchCrimes(squareCoords).then(data => {
-        console.log("Crime data length:", data.length);
+        //console.log("Crime data length:", data.length);
         setCrimeData(data);
       });
     }
@@ -93,8 +93,8 @@ const Index = () => {
       `https://data.police.uk/api/crimes-street/all-crime?poly=${squareCoords.topLeft.lat},${squareCoords.topLeft.lon}:${squareCoords.topRight.lat},${squareCoords.bottomLeft.lon}:${squareCoords.bottomLeft.lat},${squareCoords.bottomLeft.lon}:${squareCoords.bottomRight.lat},${squareCoords.bottomRight.lon}&date=${date}`
     );
   
-    console.log("Fetching crime data from:", url); // ✅ Print URL
-    console.log(squareCoords.topLeft.lat, ", ", squareCoords.topLeft.lon);
+    //console.log("Fetching crime data from:", url); // ✅ Print URL
+    //console.log(squareCoords.topLeft.lat, ", ", squareCoords.topLeft.lon);
   
     try {
       const response = await fetch(url);
@@ -105,7 +105,7 @@ const Index = () => {
       //console.log("Crime data:", data);
       return data;
     } catch (error) {
-      console.error('Error fetching crime data:', error);
+      //console.error('Error fetching crime data:', error);
       return [];
     }
   }

@@ -6,45 +6,48 @@ import { Picker } from '@react-native-picker/picker';
 const Report = () => {
   const [location, setLocation] = useState(null);
   const [streetName, setStreetName] = useState('Fetching location...');
-  const [dateTime, setDateTime] = useState(new Date().toISOString().slice(0, 16)); // Autofill with current datetime
+  const [dateTime, setDateTime] = useState(new Date());
   const [crimeType, setCrimeType] = useState('Anti-social behaviour');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setStreetName('Permission denied');
-        setLoading(false);
-        return;
-      }
+  const updateLocationAndTime = async () => {
+    setLoading(true);
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      setStreetName('Permission denied');
+      setLoading(false);
+      return;
+    }
 
-      let loc = await Location.getCurrentPositionAsync({});
-      setLocation(loc.coords);
+    let loc = await Location.getCurrentPositionAsync({});
+    setLocation(loc.coords);
 
-      try {
-        let address = await Location.reverseGeocodeAsync({
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-        });
+    try {
+      let address = await Location.reverseGeocodeAsync({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+      });
 
-        console.log("Reverse geocode response:", address);
-        if (address.length > 0) {
-          const place = address[0];
-          setStreetName(
-            place.street || place.name || place.district || place.city || place.region || 'Unknown location'
-          );
-        } else {
-          setStreetName('Unknown location');
-        }
-      } catch (error) {
-        console.error('Reverse geocoding error:', error);
+      if (address.length > 0) {
+        const place = address[0];
+        setStreetName(
+          place.street || place.name || place.district || place.city || place.region || 'Unknown location'
+        );
+      } else {
         setStreetName('Unknown location');
       }
+    } catch (error) {
+      console.error('Reverse geocoding error:', error);
+      setStreetName('Unknown location');
+    }
 
-      setLoading(false);
-    })();
+    setDateTime(new Date());
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    updateLocationAndTime();
   }, []);
 
   const handleSubmit = async () => {
@@ -54,16 +57,15 @@ const Report = () => {
     }
 
     const reportData = {
+      crime_type: crimeType,
       latitude: location.latitude,
       longitude: location.longitude,
-      street_name: streetName,
-      date_time: dateTime,
-      crime_type: crimeType,
       description: description.trim() || null,
+      date_time: dateTime.toISOString(),
     };
 
     try {
-      const response = await fetch('https://yourserver.com/api/report', {
+      const response = await fetch('http://localhost:3000/api/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(reportData),
@@ -86,26 +88,23 @@ const Report = () => {
       {loading && <ActivityIndicator size="large" color="blue" />}
       
       <Text style={styles.label}>Location:</Text>
-      <TextInput style={styles.input} value={streetName} editable={false} />
+      <Text style={[styles.text, styles.centerText]}>{streetName}</Text>
 
       <Text style={styles.label}>Date & Time:</Text>
-      <TextInput
-        style={styles.input}
-        value={dateTime}
-        onChangeText={setDateTime}
-        placeholder="YYYY-MM-DD HH:MM"
-      />
+      <Text style={[styles.text, styles.centerText]}>{dateTime.toLocaleString()}</Text>
+
+      <Button title="Refresh Location & Time" onPress={updateLocationAndTime} />
 
       <Text style={styles.label}>Crime Type:</Text>
       <Picker
-  selectedValue={crimeType}
-  onValueChange={(itemValue) => setCrimeType(itemValue)}
-  style={styles.picker}
->
-  <Picker.Item label="Anti-social behaviour" value="Anti-social behaviour" />
-  <Picker.Item label="Vehicle crime" value="Vehicle crime" />
-  <Picker.Item label="Violent crime" value="Violent crime" />
-</Picker>
+        selectedValue={crimeType}
+        onValueChange={(itemValue) => setCrimeType(itemValue)}
+        style={styles.picker}
+      >
+        <Picker.Item label="Anti-social behaviour" value="Anti-social behaviour" />
+        <Picker.Item label="Vehicle crime" value="Vehicle crime" />
+        <Picker.Item label="Violent crime" value="Violent crime" />
+      </Picker>
 
       <Text style={styles.label}>Description (Optional):</Text>
       <TextInput
@@ -138,6 +137,14 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 18,
     marginBottom: 5,
+  },
+  text: {
+    fontSize: 16,
+    marginBottom: 10,
+    color: '#333',
+  },
+  centerText: {
+    textAlign: 'center',
   },
   input: {
     borderWidth: 1,
