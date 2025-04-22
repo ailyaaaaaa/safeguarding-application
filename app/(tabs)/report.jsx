@@ -55,22 +55,22 @@ const Report = () => {
       Alert.alert('Error', 'Location not available. Try again later.');
       return;
     }
-
-    const reportData = {
+  
+    const queryParams = new URLSearchParams({
       crime_type: crimeType,
-      latitude: location.latitude,
-      longitude: location.longitude,
-      description: description.trim() || null,
+      latitude: location.latitude.toString(),
+      longitude: location.longitude.toString(),
+      description: description.trim() || '',
       date_time: dateTime.toISOString(),
-    };
-
+    });
+  
+    const url = `https://doc.gold.ac.uk/usr/697/api/report?${queryParams.toString()}`;
+  
     try {
-      const response = await fetch('http://localhost:3000/api/report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(reportData),
+      const response = await fetch(url, {
+        method: 'GET',
       });
-
+  
       if (response.ok) {
         Alert.alert('Success', 'Report submitted successfully.');
       } else {
