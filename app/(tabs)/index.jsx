@@ -79,33 +79,52 @@ const Index = () => {
 
   useEffect(() => {
     if (location) {
-      const squareCoords = getSquareCoordinates(location.latitude, location.longitude, 1500);
-      fetchCrimes(squareCoords).then(data => {
-        //console.log("Crime data length:", data.length);
-        setCrimeData(data);
-      });
+      const size = 1500; // Define the size of the area to search
+      const fetchAllCrimes = async () => {
+        const [policeData, backendData] = await Promise.all([
+          fetchCrimesFromMetAPI(getSquareCoordinates(location.latitude, location.longitude, size)),
+          fetchCrimesFromBackend(location, size),
+        ]);
+
+        // Combine data from both sources
+        const combinedData = [...policeData, ...backendData];
+        setCrimeData(combinedData);
+      };
+
+      fetchAllCrimes();
     }
   }, [location]);
 
-  async function fetchCrimes(squareCoords) {
+  async function fetchCrimesFromMetAPI(squareCoords) {
     const date = '2024-01';
     const url = encodeURI(
-      `https://data.police.uk/api/crimes-street/all-crime?poly=${squareCoords.topLeft.lat},${squareCoords.topLeft.lon}:${squareCoords.topRight.lat},${squareCoords.bottomLeft.lon}:${squareCoords.bottomLeft.lat},${squareCoords.bottomLeft.lon}:${squareCoords.bottomRight.lat},${squareCoords.bottomRight.lon}&date=${date}`
+      `https://data.police.uk/api/crimes-street/all-crime?poly=${squareCoords.topLeft.lat},${squareCoords.topLeft.lon}:${squareCoords.topRight.lat},${squareCoords.topRight.lon}:${squareCoords.bottomRight.lat},${squareCoords.bottomRight.lon}:${squareCoords.bottomLeft.lat},${squareCoords.bottomLeft.lon}&date=${date}`
     );
-  
-    //console.log("Fetching crime data from:", url); // ✅ Print URL
-    //console.log(squareCoords.topLeft.lat, ", ", squareCoords.topLeft.lon);
-  
+
     try {
       const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`API responded with status ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`Met API error ${response.status}`);
       const data = await response.json();
-      //console.log("Crime data:", data);
-      return data;
+
+      // Attach source tag
+      return data.map(crime => ({ ...crime, source: 'met' }));
     } catch (error) {
-      //console.error('Error fetching crime data:', error);
+      console.error('Met API error:', error);
+      return [];
+    }
+  }
+
+  async function fetchCrimesFromBackend(location, size) {
+    const url = `https://doc.gold.ac.uk/usr/697/api/nearby?lat=${location.latitude}&lng=${location.longitude}&size=${size}`;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Backend API error ${response.status}`);
+      const data = await response.json();
+
+      return data.map(crime => ({ ...crime, source: 'report' }));
+    } catch (error) {
+      console.error('Backend API error:', error);
       return [];
     }
   }
@@ -124,15 +143,15 @@ const Index = () => {
           showsUserLocation={true} // Show the user's location with the default blue dot
         >
           {crimeData.map((crime, index) => {
-            const latitude = parseFloat(crime.location.latitude) + index * 0.0001; // Slight offset
-            const longitude = parseFloat(crime.location.longitude) + index * 0.0001; // Slight offset
-            //console.log(`Crime ${index}:`, latitude, longitude);
+            const latitude = parseFloat(crime.location?.latitude || crime.latitude);
+            const longitude = parseFloat(crime.location?.longitude || crime.longitude);
+            if (!latitude || !longitude) return null; // Skip if location data is missing
             return (
               <Marker
-                key={crime.id} // Use a unique identifier if available
+                key={crime.id || index} // Use a unique identifier if available
                 coordinate={{ latitude, longitude }}
-                title={crime.category}
-                description={crime.location.street.name}
+                title={crime.category || crime.crime_type || 'Crime'}
+                description={crime.location?.street?.name || crime.description || 'No description'}
               />
             );
           })}
