@@ -101,9 +101,20 @@ const Report = () => {
         onValueChange={(itemValue) => setCrimeType(itemValue)}
         style={styles.picker}
       >
-        <Picker.Item label="Anti-social behaviour" value="Anti-social behaviour" />
-        <Picker.Item label="Vehicle crime" value="Vehicle crime" />
-        <Picker.Item label="Violent crime" value="Violent crime" />
+        <Picker.Item label="Anti Social Behaviour" value="anti-social-behaviour" />
+        <Picker.Item label="Bicycle Theft" value="bicycle-theft" />
+        <Picker.Item label="Burglary" value="burglary" />
+        <Picker.Item label="Criminal Damage Arson" value="criminal-damage-arson" />
+        <Picker.Item label="Drugs" value="drugs" />
+        <Picker.Item label="Other Theft" value="other-theft" />
+        <Picker.Item label="Possession of Weapons" value="possession-of-weapons" />
+        <Picker.Item label="Public Order" value="public-order" />
+        <Picker.Item label="Robbery" value="robbery" />
+        <Picker.Item label="Shoplifting" value="shoplifting" />
+        <Picker.Item label="Theft" value="theft-from-the-person" />
+        <Picker.Item label="Vehicle Crime" value="vehicle-crime" />
+        <Picker.Item label="Violent Crime" value="violent-crime" />
+        <Picker.Item label="Other" value="other-crime" />
       </Picker>
 
       <Text style={styles.label}>Description (Optional):</Text>
