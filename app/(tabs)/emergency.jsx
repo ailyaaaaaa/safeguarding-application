@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Button, Linking } from 'react-native';
 import * as Location from 'expo-location';
 
 const Emergency = () => {
   const [location, setLocation] = useState(null);
-  const [streetName, setStreetName] = useState('Fetching street name...');
+  const [countryCode, setCountryCode] = useState(null);
+  const [emergencyInfo, setEmergencyInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -20,37 +21,59 @@ const Emergency = () => {
       let loc = await Location.getCurrentPositionAsync({});
       setLocation(loc.coords);
 
-      // Reverse geocode to get address
       try {
-        let address = await Location.reverseGeocodeAsync({
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-        });
-
-        console.log("Full reverse geocode response:", address); // Log full response
-
-        if (address.length > 0) {
-          const place = address[0];
-
-          setStreetName(
-            place.street ||
-            place.name ||
-            place.district ||
-            place.city ||
-            place.region ||
-            'Unknown location'
-          );
-        } else {
-          setStreetName('Unknown location');
-        }
+        const openCageUrl = `https://api.opencagedata.com/geocode/v1/json?q=${loc.coords.latitude}+${loc.coords.longitude}&key=e8f3831d70994ef994ff852d41569356`;
+        const openCageResponse = await fetch(openCageUrl);
+        if (!openCageResponse.ok) throw new Error(`OpenCage API error ${openCageResponse.status}`);
+        const openCageData = await openCageResponse.json();
+        const countryCode = openCageData.results[0].components['ISO_3166-1_alpha-2'];
+        setCountryCode(countryCode);
+        fetchEmergencyInfo(countryCode);
       } catch (error) {
-        console.error('Reverse geocoding error:', error);
-        setStreetName('Unknown location');
+        console.error('Error fetching country code:', error);
+        setCountryCode(null);
       }
 
       setLoading(false);
     })();
   }, []);
+
+  const fetchEmergencyInfo = async (code) => {
+    try {
+      const emergencyUrl = `https://emergencynumberapi.com/api/country/${code}`;
+      const response = await fetch(emergencyUrl);
+      if (!response.ok) throw new Error(`Emergency Number API error ${response.status}`);
+      const data = await response.json();
+
+      const ambulanceNumbers = (data.data.ambulance?.all || []).filter(n => !!n && n.trim() !== '');
+      const fireNumbers = (data.data.fire?.all || []).filter(n => !!n && n.trim() !== '');
+      const policeNumbers = (data.data.police?.all || []).filter(n => !!n && n.trim() !== '');
+      const dispatchNumbers = (data.data.dispatch?.all || []).filter(n => !!n && n.trim() !== '');
+
+      setEmergencyInfo({
+        Ambulance: ambulanceNumbers,
+        Fire: fireNumbers,
+        Police: policeNumbers,
+        Dispatch: dispatchNumbers,
+      });
+    } catch (error) {
+      console.error('Error fetching emergency info:', error);
+      setEmergencyInfo({
+        Ambulance: [],
+        Fire: [],
+        Police: [],
+        Dispatch: [],
+      });
+    }
+  };
+
+  const dialNumber = (numbers) => {
+    const validNumber = numbers.find(n => !!n && n.trim() !== '');
+    if (validNumber) {
+      Linking.openURL(`tel:${validNumber}`);
+    }
+  };
+  
 
   return (
     <View style={styles.container}>
@@ -61,9 +84,59 @@ const Emergency = () => {
         <Text style={styles.location}>
           Latitude: {location.latitude} {'\n'}
           Longitude: {location.longitude} {'\n'}
-          Street: {streetName}
+          Country Code: {countryCode || 'Fetching...'}
         </Text>
       )}
+
+      {emergencyInfo && (() => {
+        const hasAmbulance = Array.isArray(emergencyInfo.Ambulance) && emergencyInfo.Ambulance.length > 0;
+        const hasFire = Array.isArray(emergencyInfo.Fire) && emergencyInfo.Fire.length > 0;
+        const hasPolice = Array.isArray(emergencyInfo.Police) && emergencyInfo.Police.length > 0;
+        const hasDispatch = Array.isArray(emergencyInfo.Dispatch) && emergencyInfo.Dispatch.length > 0;
+        const hasAny = hasAmbulance || hasFire || hasPolice || hasDispatch;
+
+        if (!hasAny) {
+          return (
+            <View style={styles.emergencyInfo}>
+              <Text style={styles.infoTitle}>No emergency services available for your location.</Text>
+            </View>
+          );
+        }
+
+        return (
+          <View style={styles.emergencyInfo}>
+            <Text style={styles.infoTitle}>Emergency Numbers:</Text>
+
+            {hasAmbulance && (
+              <View style={styles.serviceContainer}>
+                <Text>Ambulance: {emergencyInfo.Ambulance.join(', ')}</Text>
+                <Button title="Call Ambulance" onPress={() => dialNumber(emergencyInfo.Ambulance)} />
+              </View>
+            )}
+
+            {hasFire && (
+              <View style={styles.serviceContainer}>
+                <Text>Fire: {emergencyInfo.Fire.join(', ')}</Text>
+                <Button title="Call Fire" onPress={() => dialNumber(emergencyInfo.Fire)} />
+              </View>
+            )}
+
+            {hasPolice && (
+              <View style={styles.serviceContainer}>
+                <Text>Police: {emergencyInfo.Police.join(', ')}</Text>
+                <Button title="Call Police" onPress={() => dialNumber(emergencyInfo.Police)} />
+              </View>
+            )}
+
+            {hasDispatch && (
+              <View style={styles.serviceContainer}>
+                <Text>Dispatch: {emergencyInfo.Dispatch.join(', ')}</Text>
+                <Button title="Call Dispatch" onPress={() => dialNumber(emergencyInfo.Dispatch)} />
+              </View>
+            )}
+          </View>
+        );
+      })()}
     </View>
   );
 };
@@ -91,5 +164,19 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: 'red',
     textAlign: 'center',
+  },
+  emergencyInfo: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  infoTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  serviceContainer: {
+    marginBottom: 10,
+    alignItems: 'center',
   },
 });
