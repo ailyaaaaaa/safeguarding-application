@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet, ActivityIndicator, Alert, Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, TouchableOpacity } from 'react-native';
 import * as Location from 'expo-location';
 import { Picker } from '@react-native-picker/picker';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { Colors } from '@/constants/Colors';
+import { useCommonStyles } from '@/constants/commonStyles';
 
 const Report = () => {
   const [location, setLocation] = useState(null);
@@ -10,6 +13,8 @@ const Report = () => {
   const [crimeType, setCrimeType] = useState('Anti-social behaviour');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(true);
+  const colorScheme = useColorScheme();
+  const styles = useCommonStyles(); // Call the function to get styles
 
   const updateLocationAndTime = async () => {
     setLoading(true);
@@ -83,89 +88,67 @@ const Report = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Report a Crime</Text>
-      {loading && <ActivityIndicator size="large" color="blue" />}
-      
-      <Text style={styles.label}>Location:</Text>
-      <Text style={[styles.text, styles.centerText]}>{streetName}</Text>
-
-      <Text style={styles.label}>Date & Time:</Text>
-      <Text style={[styles.text, styles.centerText]}>{dateTime.toLocaleString()}</Text>
-
-      <Button title="Refresh Location & Time" onPress={updateLocationAndTime} />
-
-      <Text style={styles.label}>Crime Type:</Text>
-      <Picker
-        selectedValue={crimeType}
-        onValueChange={(itemValue) => setCrimeType(itemValue)}
-        style={styles.picker}
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.container}
       >
-        <Picker.Item label="Anti Social Behaviour" value="anti-social-behaviour" />
-        <Picker.Item label="Bicycle Theft" value="bicycle-theft" />
-        <Picker.Item label="Burglary" value="burglary" />
-        <Picker.Item label="Criminal Damage Arson" value="criminal-damage-arson" />
-        <Picker.Item label="Drugs" value="drugs" />
-        <Picker.Item label="Other Theft" value="other-theft" />
-        <Picker.Item label="Possession of Weapons" value="possession-of-weapons" />
-        <Picker.Item label="Public Order" value="public-order" />
-        <Picker.Item label="Robbery" value="robbery" />
-        <Picker.Item label="Shoplifting" value="shoplifting" />
-        <Picker.Item label="Theft" value="theft-from-the-person" />
-        <Picker.Item label="Vehicle Crime" value="vehicle-crime" />
-        <Picker.Item label="Violent Crime" value="violent-crime" />
-        <Picker.Item label="Other" value="other-crime" />
-      </Picker>
+        <Text style={styles.title}>Report a Crime</Text>
+        {loading && <ActivityIndicator size="large" color="blue" />}
+        
+        <Text style={styles.label}>Location:</Text>
+        <Text style={[styles.text, styles.text]}>{streetName}</Text>
 
-      <Text style={styles.label}>Description (Optional):</Text>
-      <TextInput
-        style={[styles.input, { height: 80 }]}
-        multiline
-        value={description}
-        onChangeText={setDescription}
-        placeholder="Describe the crime (optional)"
-      />
+        <Text style={styles.label}>Date & Time:</Text>
+        <Text style={[styles.text, styles.text]}>{dateTime.toLocaleString()}</Text>
 
-      <Button title="Submit Report" onPress={handleSubmit} color="red" />
-    </View>
+        <TouchableOpacity 
+          style={styles.bluePill} 
+          onPress={updateLocationAndTime}
+        >
+          <Text style={styles.pillButtonText}>Refresh Location & Time</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.label}>Crime Type:</Text>
+        <Picker
+          selectedValue={crimeType}
+          onValueChange={(itemValue) => setCrimeType(itemValue)}
+          style={styles.picker}
+        >
+          <Picker.Item label="Anti Social Behaviour" value="anti-social-behaviour" />
+          <Picker.Item label="Bicycle Theft" value="bicycle-theft" />
+          <Picker.Item label="Burglary" value="burglary" />
+          <Picker.Item label="Criminal Damage Arson" value="criminal-damage-arson" />
+          <Picker.Item label="Drugs" value="drugs" />
+          <Picker.Item label="Other Theft" value="other-theft" />
+          <Picker.Item label="Possession of Weapons" value="possession-of-weapons" />
+          <Picker.Item label="Public Order" value="public-order" />
+          <Picker.Item label="Robbery" value="robbery" />
+          <Picker.Item label="Shoplifting" value="shoplifting" />
+          <Picker.Item label="Theft" value="theft-from-the-person" />
+          <Picker.Item label="Vehicle Crime" value="vehicle-crime" />
+          <Picker.Item label="Violent Crime" value="violent-crime" />
+          <Picker.Item label="Other" value="other-crime" />
+        </Picker>
+
+        <Text style={styles.label}>Description (Optional):</Text>
+        <TextInput
+          style={[styles.input, { height: 80 }]}
+          multiline
+          value={description}
+          onChangeText={setDescription}
+          placeholder="Describe the crime (optional)"
+        />
+
+        <TouchableOpacity 
+          style={styles.redPill} 
+          onPress={handleSubmit}
+        >
+          <Text style={styles.pillButtonText}>Submit Report</Text>
+        </TouchableOpacity>
+      </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 };
 
 export default Report;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 18,
-    marginBottom: 5,
-  },
-  text: {
-    fontSize: 16,
-    marginBottom: 10,
-    color: '#333',
-  },
-  centerText: {
-    textAlign: 'center',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 10,
-    fontSize: 16,
-  },
-  picker: {
-    marginBottom: 10,
-  },
-});

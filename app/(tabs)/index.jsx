@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native';
 import * as Location from 'expo-location';
 import MapView, { Marker } from 'react-native-maps';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { Colors } from '@/constants/Colors';
+import { useCommonStyles } from '@/constants/commonStyles';
 
 // Crime categories and associated colors
 const crimeTypes = {
@@ -44,6 +47,8 @@ const Index = () => {
   const [mapRegion, setMapRegion] = useState(null);
   const [initialRegionSet, setInitialRegionSet] = useState(false);
   const [selectedCrimeType, setSelectedCrimeType] = useState('all-crime');
+  const colorScheme = useColorScheme();
+  const styles = useCommonStyles(); 
 
   useEffect(() => {
     let locationSubscription;
@@ -137,9 +142,9 @@ const Index = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Map</Text>
-      {loading && <ActivityIndicator size="large" color="blue" />}
-      {error && <Text style={styles.error}>{error}</Text>}
+      <Text style={[styles.title, { color: Colors[colorScheme].text }]}>Map</Text>
+      {loading && <ActivityIndicator size="large" color={Colors[colorScheme].tint} />}
+      {error && <Text style={[styles.error, { color: 'red' }]}>{error}</Text>}
       <View style={styles.pillContainer}>
   <TouchableOpacity
     style={[
@@ -164,7 +169,7 @@ const Index = () => {
   ))}
 </View>
 
-      <Text style={styles.crime}>Crimes Shown: {filteredCrimes.length}</Text>
+      <Text style={[styles.text, { color: Colors[colorScheme].text }]}>Crimes Shown: {filteredCrimes.length}</Text>
       {mapRegion && (
         <MapView
           style={styles.map}
@@ -195,75 +200,3 @@ const Index = () => {
 };
 
 export default Index;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 60,
-    alignItems: 'center',
-  },
-  map: {
-    width: '90%',
-    height: '60%',
-    marginTop: 10,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  crime: {
-    fontSize: 16,
-    color: 'black',
-    marginTop: 5,
-  },
-  error: {
-    fontSize: 16,
-    color: 'red',
-  },
-  buttonScroll: {
-    flexDirection: 'row',
-    marginVertical: 10,
-  },
-  button: {
-    marginHorizontal: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderWidth: 1,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
-  },
-  buttonText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    textTransform: 'capitalize',
-  },
-  pillContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    paddingHorizontal: 10,
-    gap: 8,
-    marginVertical: 10,
-  },
-  
-  pill: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    backgroundColor: '#f9f9f9',
-  },
-  
-  pillSelected: {
-    backgroundColor: '#e6f0ff',
-    borderColor: '#007aff',
-  },
-  
-  pillText: {
-    fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  }  
-});
