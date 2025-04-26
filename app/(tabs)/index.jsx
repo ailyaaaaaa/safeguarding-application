@@ -1,12 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native';
 import * as Location from 'expo-location';
 import MapView, { Marker } from 'react-native-maps';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useCommonStyles } from '@/constants/commonStyles';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 
-// Crime categories and associated colors
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
 const crimeTypes = {
   'anti-social-behaviour': 'darkred',
   'bicycle-theft': 'crimson',
@@ -39,6 +48,31 @@ function getSquareCoordinates(lat, lon, size) {
   };
 }
 
+const getRiskLevel = (count) => {
+  //if (count < 150) return 'Low';
+  //if (count < 300) return 'Medium';
+  return 'High';
+};
+
+const notifyIfHighRisk = async () => {
+  const now = Date.now();
+  const lastNotifiedStr = await AsyncStorage.getItem('lastHighRiskNotification');
+  const lastNotified = lastNotifiedStr ? parseInt(lastNotifiedStr, 10) : 0;
+  const fiveMinutes = 0.25 * 60 * 1000;
+
+  if (now - lastNotified > fiveMinutes) {
+    await AsyncStorage.setItem('lastHighRiskNotification', now.toString());
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '⚠️ High-Risk Area Detected',
+        body: 'You are currently in a high-risk area based on recent crimes.',
+        sound: true,
+      },
+      trigger: null,
+    });
+  }
+};
+
 const Index = () => {
   const [location, setLocation] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -47,12 +81,28 @@ const Index = () => {
   const [mapRegion, setMapRegion] = useState(null);
   const [initialRegionSet, setInitialRegionSet] = useState(false);
   const [selectedCrimeType, setSelectedCrimeType] = useState('all-crime');
+  const [riskLevel, setRiskLevel] = useState(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const colorScheme = useColorScheme();
-  const styles = useCommonStyles(); 
+  const styles = useCommonStyles();
+
+  useEffect(() => {
+    AsyncStorage.getItem('notifyHighRisk').then(value => {
+      if (value !== null) {
+        setNotificationsEnabled(value === 'true');
+      }
+    });
+
+    (async () => {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Notification permissions not granted');
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     let locationSubscription;
-
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -99,19 +149,27 @@ const Index = () => {
           fetchCrimesFromMetAPI(getSquareCoordinates(location.latitude, location.longitude, size)),
           fetchCrimesFromBackend(location, size),
         ]);
-        setCrimeData([...policeData, ...backendData]);
+        const allCrimes = [...policeData, ...backendData];
+        setCrimeData(allCrimes);
+        const risk = getRiskLevel(allCrimes.length);
+        setRiskLevel(risk);
+
+        if (risk === 'High' && notificationsEnabled) {
+          notifyIfHighRisk();
+        }
       };
       fetchAllCrimes();
     }
-  }, [location]);
+  }, [location, notificationsEnabled]);
 
   async function fetchCrimesFromMetAPI(squareCoords) {
     const now = new Date();
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-    const date = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;    const url = encodeURI(
+    const date = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
+    const url = encodeURI(
       `https://data.police.uk/api/crimes-street/all-crime?poly=${squareCoords.topLeft.lat},${squareCoords.topLeft.lon}:${squareCoords.topRight.lat},${squareCoords.topRight.lon}:${squareCoords.bottomRight.lat},${squareCoords.bottomRight.lon}:${squareCoords.bottomLeft.lat},${squareCoords.bottomLeft.lon}&date=${date}`
     );
-    
+
     try {
       const response = await fetch(url);
       if (!response.ok) throw new Error(`Met API error ${response.status}`);
@@ -146,30 +204,33 @@ const Index = () => {
       {loading && <ActivityIndicator size="large" color={Colors[colorScheme].tint} />}
       {error && <Text style={[styles.error, { color: 'red' }]}>{error}</Text>}
       <View style={styles.pillContainer}>
-  <TouchableOpacity
-    style={[
-      styles.pill,
-      selectedCrimeType === 'all-crime' && styles.pillSelected,
-    ]}
-    onPress={() => setSelectedCrimeType('all-crime')}
-  >
-    <Text style={styles.pillText}>All</Text>
-  </TouchableOpacity>
-  {Object.entries(crimeTypes).map(([type, color]) => (
-    <TouchableOpacity
-      key={type}
-      style={[
-        styles.pill,
-        selectedCrimeType === type && [styles.pillSelected, { borderColor: color }],
-      ]}
-      onPress={() => setSelectedCrimeType(type)}
-    >
-      <Text style={[styles.pillText, { color }]}>{type.replace(/-/g, ' ')}</Text>
-    </TouchableOpacity>
-  ))}
-</View>
+        <TouchableOpacity
+          style={[styles.pill, selectedCrimeType === 'all-crime' && styles.pillSelected]}
+          onPress={() => setSelectedCrimeType('all-crime')}
+        >
+          <Text style={styles.pillText}>All</Text>
+        </TouchableOpacity>
+        {Object.entries(crimeTypes).map(([type, color]) => (
+          <TouchableOpacity
+            key={type}
+            style={[
+              styles.pill,
+              selectedCrimeType === type && [styles.pillSelected, { borderColor: color }],
+            ]}
+            onPress={() => setSelectedCrimeType(type)}
+          >
+            <Text style={[styles.pillText, { color }]}>{type.replace(/-/g, ' ')}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <Text style={[styles.text, { color: Colors[colorScheme].text }]}>Crimes Shown: {filteredCrimes.length}</Text>
+      {riskLevel && (
+        <Text style={[styles.text, { color: riskLevel === 'High' ? 'red' : riskLevel === 'Medium' ? 'orange' : 'green' }]}>
+          Risk Level: {riskLevel}
+        </Text>
+      )}
+
       {mapRegion && (
         <MapView
           style={styles.map}
