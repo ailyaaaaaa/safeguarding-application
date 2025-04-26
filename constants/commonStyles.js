@@ -154,5 +154,56 @@ export const useCommonStyles = () => {
       textAlign: 'center',
       fontWeight: '600',
     },
+    settingGroup: {
+      marginBottom: 20,
+    },
+    settingLabel: {
+      fontSize: 16,
+      fontWeight: '500',
+      marginBottom: 5,
+      color: Colors[colorScheme].text,
+    },
+    //Settings
+    radioGroupOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 0, // Remove vertical spacing since it's now horizontal
+      marginRight: 18, // Add more space between items
+      paddingVertical: 4,
+    },
+    radioOuter: {
+      height: 22,
+      width: 22,
+      borderRadius: 11,
+      borderWidth: 2,
+      borderColor: '#888',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 8,
+    },
+    radioOuterSelected: {
+      borderColor: '#007AFF',
+    },
+    radioInner: {
+      height: 12,
+      width: 12,
+      borderRadius: 6,
+      backgroundColor: '#007AFF',
+    },
+    radioLabel: {
+      fontSize: 16,
+      color: Colors[colorScheme].text,
+    },
+    radioGroupRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap', // Allows wrapping if there are many options/small screen
+      marginBottom: 8,
+      marginTop: 2
+    },
+    switchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
   });
 };
