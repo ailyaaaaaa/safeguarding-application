@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Button, Linking, TouchableOpacity } from 'react-native';
+import { View, Text, ActivityIndicator, Linking, TouchableOpacity } from 'react-native';
 import * as Location from 'expo-location';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useCommonStyles } from '@/constants/commonStyles';
+import { useSettings } from '@/constants/settingsContext';
 
 const Emergency = () => {
   const [location, setLocation] = useState(null);
@@ -11,9 +12,19 @@ const Emergency = () => {
   const [emergencyInfo, setEmergencyInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const colorScheme = useColorScheme();
-  const styles = useCommonStyles(); // Call the function to get styles
 
+  const { darkMode, textSize } = useSettings();
+  const systemTheme = useColorScheme(); // 'dark' or 'light'
+  const effectiveTheme = darkMode === 'system' ? systemTheme : darkMode;
+
+  const styles = useCommonStyles();
+  const dynamicTextSize = {
+    small: 12,
+    medium: 16,
+    large: 20,
+  }[textSize] || 16;
+  const backgroundColor = effectiveTheme === 'dark' ? '#000' : '#fff';
+  const textColor = effectiveTheme === 'dark' ? '#fff' : '#000';
 
   useEffect(() => {
     (async () => {
@@ -23,7 +34,6 @@ const Emergency = () => {
         setLoading(false);
         return;
       }
-
       let loc = await Location.getCurrentPositionAsync({});
       setLocation(loc.coords);
 
@@ -39,7 +49,6 @@ const Emergency = () => {
         console.error('Error fetching country code:', error);
         setCountryCode(null);
       }
-
       setLoading(false);
     })();
   }, []);
@@ -79,15 +88,14 @@ const Emergency = () => {
       Linking.openURL(`tel:${validNumber}`);
     }
   };
-  
 
   return (
-    <View style={styles.container}>
-      <Text style={[styles.title]}>Emergency</Text>
-      {loading && <ActivityIndicator size="large" color={Colors[colorScheme].tint} />}
-      {error && <Text style={[styles.error]}>{error}</Text>}
+    <View style={[styles.container, { backgroundColor }]}>
+      <Text style={[styles.title, { color: textColor, fontSize: dynamicTextSize + 8 }]}>Emergency</Text>
+      {loading && <ActivityIndicator size="large" color={Colors[systemTheme].tint} />}
+      {error && <Text style={[styles.error, { fontSize: dynamicTextSize, color: textColor }]}>{error}</Text>}
       {location && (
-        <Text style={[styles.location]}>
+        <Text style={[styles.location, { color: textColor, fontSize: dynamicTextSize }]}>
           Latitude: {location.latitude} {'\n'}
           Longitude: {location.longitude} {'\n'}
           Country Code: {countryCode || 'Fetching...'}
@@ -104,18 +112,24 @@ const Emergency = () => {
         if (!hasAny) {
           return (
             <View style={styles.emergencyInfo}>
-              <Text style={styles.infoTitle}>No emergency services available for your location.</Text>
+              <Text style={[styles.infoTitle, { color: textColor, fontSize: dynamicTextSize + 2 }]}>
+                No emergency services available for your location.
+              </Text>
             </View>
           );
         }
 
         return (
           <View style={styles.emergencyInfo}>
-            <Text style={styles.infoTitle}>Emergency Numbers:</Text>
+            <Text style={[styles.infoTitle, { color: textColor, fontSize: dynamicTextSize + 2 }]}>
+              Emergency Numbers:
+            </Text>
 
             {hasAmbulance && (
               <View style={styles.serviceContainer}>
-                <Text>Ambulance: {emergencyInfo.Ambulance.join(', ')}</Text>
+                <Text style={{ color: textColor, fontSize: dynamicTextSize }}>
+                  Ambulance: {emergencyInfo.Ambulance.join(', ')}
+                </Text>
                 <TouchableOpacity 
                   style={styles.redPill} 
                   onPress={() => dialNumber(emergencyInfo.Ambulance)}
@@ -127,38 +141,44 @@ const Emergency = () => {
 
             {hasFire && (
               <View style={styles.serviceContainer}>
-              <Text>Fire: {emergencyInfo.Fire.join(', ')}</Text>
-              <TouchableOpacity 
-                style={styles.redPill} 
-                onPress={() => dialNumber(emergencyInfo.Fire)}
-              >
-                <Text style={styles.pillButtonText}>Call Fire</Text>
-              </TouchableOpacity>
-            </View>
+                <Text style={{ color: textColor, fontSize: dynamicTextSize }}>
+                  Fire: {emergencyInfo.Fire.join(', ')}
+                </Text>
+                <TouchableOpacity 
+                  style={styles.redPill} 
+                  onPress={() => dialNumber(emergencyInfo.Fire)}
+                >
+                  <Text style={styles.pillButtonText}>Call Fire</Text>
+                </TouchableOpacity>
+              </View>
             )}
 
             {hasPolice && (
               <View style={styles.serviceContainer}>
-              <Text>Police: {emergencyInfo.Police.join(', ')}</Text>
-              <TouchableOpacity 
-                style={styles.redPill} 
-                onPress={() => dialNumber(emergencyInfo.Police)}
-              >
-                <Text style={styles.pillButtonText}>Call Police</Text>
-              </TouchableOpacity>
-            </View>
+                <Text style={{ color: textColor, fontSize: dynamicTextSize }}>
+                  Police: {emergencyInfo.Police.join(', ')}
+                </Text>
+                <TouchableOpacity 
+                  style={styles.redPill} 
+                  onPress={() => dialNumber(emergencyInfo.Police)}
+                >
+                  <Text style={styles.pillButtonText}>Call Police</Text>
+                </TouchableOpacity>
+              </View>
             )}
 
             {hasDispatch && (
               <View style={styles.serviceContainer}>
-              <Text>Dispatch: {emergencyInfo.Dispatch.join(', ')}</Text>
-              <TouchableOpacity 
-                style={styles.redPill} 
-                onPress={() => dialNumber(emergencyInfo.Dispatch)}
-              >
-                <Text style={styles.pillButtonText}>Call Dispatch</Text>
-              </TouchableOpacity>
-            </View>
+                <Text style={{ color: textColor, fontSize: dynamicTextSize }}>
+                  Dispatch: {emergencyInfo.Dispatch.join(', ')}
+                </Text>
+                <TouchableOpacity 
+                  style={styles.redPill} 
+                  onPress={() => dialNumber(emergencyInfo.Dispatch)}
+                >
+                  <Text style={styles.pillButtonText}>Call Dispatch</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         );

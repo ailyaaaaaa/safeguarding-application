@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
 import * as Location from 'expo-location';
 import MapView, { Marker } from 'react-native-maps';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { useCommonStyles } from '@/constants/commonStyles';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import { useSettings } from '@/constants/settingsContext';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -39,7 +39,6 @@ function getSquareCoordinates(lat, lon, size) {
   const latRad = lat * Math.PI / 180;
   const dLat = d / R;
   const dLon = d / (R * Math.cos(latRad));
-
   return {
     topLeft: { lat: lat + (dLat * 180 / Math.PI), lon: lon - (dLon * 180 / Math.PI) },
     topRight: { lat: lat + (dLat * 180 / Math.PI), lon: lon + (dLon * 180 / Math.PI) },
@@ -48,18 +47,13 @@ function getSquareCoordinates(lat, lon, size) {
   };
 }
 
-const getRiskLevel = (count) => {
-  //if (count < 150) return 'Low';
-  //if (count < 300) return 'Medium';
-  return 'High';
-};
+const getRiskLevel = (count) => (count > 250 ? 'High' : count > 100 ? 'Medium' : 'Low'); // demo logic
 
 const notifyIfHighRisk = async () => {
   const now = Date.now();
   const lastNotifiedStr = await AsyncStorage.getItem('lastHighRiskNotification');
   const lastNotified = lastNotifiedStr ? parseInt(lastNotifiedStr, 10) : 0;
   const fiveMinutes = 0.25 * 60 * 1000;
-
   if (now - lastNotified > fiveMinutes) {
     await AsyncStorage.setItem('lastHighRiskNotification', now.toString());
     await Notifications.scheduleNotificationAsync({
@@ -74,6 +68,17 @@ const notifyIfHighRisk = async () => {
 };
 
 const Index = () => {
+  const {
+    darkMode,
+    textSize,
+    notifications: notificationsEnabled,
+    crimeSource
+  } = useSettings();
+
+  // Key update: get system theme and compute effectiveTheme like in other files
+  const systemTheme = useColorScheme();
+  const effectiveTheme = darkMode === 'system' ? systemTheme : darkMode;
+
   const [location, setLocation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [crimeData, setCrimeData] = useState([]);
@@ -82,24 +87,16 @@ const Index = () => {
   const [initialRegionSet, setInitialRegionSet] = useState(false);
   const [selectedCrimeType, setSelectedCrimeType] = useState('all-crime');
   const [riskLevel, setRiskLevel] = useState(null);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const colorScheme = useColorScheme();
+
   const styles = useCommonStyles();
 
-  useEffect(() => {
-    AsyncStorage.getItem('notifyHighRisk').then(value => {
-      if (value !== null) {
-        setNotificationsEnabled(value === 'true');
-      }
-    });
-
-    (async () => {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== 'granted') {
-        console.log('Notification permissions not granted');
-      }
-    })();
-  }, []);
+  const dynamicTextSize = {
+    small: 12,
+    medium: 16,
+    large: 20,
+  }[textSize] || 16;
+  const backgroundColor = effectiveTheme === 'dark' ? '#000' : '#fff';
+  const textColor = effectiveTheme === 'dark' ? '#fff' : '#000';
 
   useEffect(() => {
     let locationSubscription;
@@ -110,7 +107,6 @@ const Index = () => {
         setLoading(false);
         return;
       }
-
       locationSubscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.High,
@@ -120,7 +116,6 @@ const Index = () => {
         (newLocation) => {
           setLocation(newLocation.coords);
           setLoading(false);
-
           if (!initialRegionSet) {
             setMapRegion({
               latitude: newLocation.coords.latitude,
@@ -133,7 +128,6 @@ const Index = () => {
         }
       );
     })();
-
     return () => {
       if (locationSubscription) {
         locationSubscription.remove();
@@ -144,50 +138,57 @@ const Index = () => {
   useEffect(() => {
     if (location) {
       const size = 1500;
-      const fetchAllCrimes = async () => {
-        const [policeData, backendData] = await Promise.all([
-          fetchCrimesFromMetAPI(getSquareCoordinates(location.latitude, location.longitude, size)),
-          fetchCrimesFromBackend(location, size),
-        ]);
-        const allCrimes = [...policeData, ...backendData];
-        setCrimeData(allCrimes);
-        const risk = getRiskLevel(allCrimes.length);
+      const fetchRelevantCrimes = async () => {
+        let crimes = [];
+        if (crimeSource === 'both' || crimeSource === 'met') {
+          const metCrimes = await fetchCrimesFromMetAPI(getSquareCoordinates(location.latitude, location.longitude, size));
+          crimes = crimes.concat(Array.isArray(metCrimes) ? metCrimes : []);
+        }
+        if (crimeSource === 'both' || crimeSource === 'report') {
+          const userCrimes = await fetchCrimesFromBackend(location, size);
+          crimes = crimes.concat(Array.isArray(userCrimes) ? userCrimes : []);
+        }
+        crimes = crimes.filter(
+          c =>
+            c &&
+            (typeof c === 'object') &&
+            ((c.category || c.crime_type) && ((c.location && c.location.latitude && c.location.longitude) || (c.latitude && c.longitude)))
+        );
+        setCrimeData(crimes);
+        const risk = getRiskLevel(crimes.length);
         setRiskLevel(risk);
-
         if (risk === 'High' && notificationsEnabled) {
           notifyIfHighRisk();
         }
       };
-      fetchAllCrimes();
+      fetchRelevantCrimes();
     }
-  }, [location, notificationsEnabled]);
+  }, [location, notificationsEnabled, crimeSource]);
 
   async function fetchCrimesFromMetAPI(squareCoords) {
-    const now = new Date();
-    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-    const date = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
-    const url = encodeURI(
-      `https://data.police.uk/api/crimes-street/all-crime?poly=${squareCoords.topLeft.lat},${squareCoords.topLeft.lon}:${squareCoords.topRight.lat},${squareCoords.topRight.lon}:${squareCoords.bottomRight.lat},${squareCoords.bottomRight.lon}:${squareCoords.bottomLeft.lat},${squareCoords.bottomLeft.lon}&date=${date}`
-    );
-
     try {
+      const now = new Date();
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+      const date = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
+      const url = encodeURI(
+        `https://data.police.uk/api/crimes-street/all-crime?poly=${squareCoords.topLeft.lat},${squareCoords.topLeft.lon}:${squareCoords.topRight.lat},${squareCoords.topRight.lon}:${squareCoords.bottomRight.lat},${squareCoords.bottomRight.lon}:${squareCoords.bottomLeft.lat},${squareCoords.bottomLeft.lon}&date=${date}`
+      );
       const response = await fetch(url);
       if (!response.ok) throw new Error(`Met API error ${response.status}`);
       const data = await response.json();
-      return data.map(crime => ({ ...crime, source: 'met' }));
+      return Array.isArray(data) ? data.map(crime => ({ ...crime, source: 'met' })) : [];
     } catch (error) {
       console.error('Met API error:', error);
       return [];
     }
   }
-
   async function fetchCrimesFromBackend(location, size) {
-    const url = `https://doc.gold.ac.uk/usr/697/api/nearby?lat=${location.latitude}&lng=${location.longitude}&size=${size}`;
     try {
+      const url = `https://doc.gold.ac.uk/usr/697/api/nearby?lat=${location.latitude}&lng=${location.longitude}&size=${size}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error(`Backend API error ${response.status}`);
       const data = await response.json();
-      return data.map(crime => ({ ...crime, source: 'report' }));
+      return Array.isArray(data) ? data.map(crime => ({ ...crime, source: 'report' })) : [];
     } catch (error) {
       console.error('Backend API error:', error);
       return [];
@@ -196,19 +197,31 @@ const Index = () => {
 
   const filteredCrimes = selectedCrimeType === 'all-crime'
     ? crimeData
-    : crimeData.filter(crime => (crime.category || crime.crime_type) === selectedCrimeType);
+    : crimeData.filter(
+        crime =>
+          (crime.category || crime.crime_type) === selectedCrimeType
+      );
 
   return (
-    <View style={styles.container}>
-      <Text style={[styles.title, { color: Colors[colorScheme].text }]}>Map</Text>
-      {loading && <ActivityIndicator size="large" color={Colors[colorScheme].tint} />}
-      {error && <Text style={[styles.error, { color: 'red' }]}>{error}</Text>}
+    <View style={[styles.container, { backgroundColor }]}>
+      <Text style={[styles.title, { color: textColor, fontSize: dynamicTextSize + 4 }]}>
+        Map
+      </Text>
+      {loading && (
+        <ActivityIndicator size="large" color={Colors[systemTheme].tint} />
+      )}
+      {error && (
+        <Text style={[styles.error, { color: 'red', fontSize: dynamicTextSize }]}>
+          {error}
+        </Text>
+      )}
+
       <View style={styles.pillContainer}>
         <TouchableOpacity
           style={[styles.pill, selectedCrimeType === 'all-crime' && styles.pillSelected]}
           onPress={() => setSelectedCrimeType('all-crime')}
         >
-          <Text style={styles.pillText}>All</Text>
+          <Text style={[styles.pillText, { fontSize: dynamicTextSize }]}>All</Text>
         </TouchableOpacity>
         {Object.entries(crimeTypes).map(([type, color]) => (
           <TouchableOpacity
@@ -219,14 +232,31 @@ const Index = () => {
             ]}
             onPress={() => setSelectedCrimeType(type)}
           >
-            <Text style={[styles.pillText, { color }]}>{type.replace(/-/g, ' ')}</Text>
+            <Text style={[styles.pillText, { color, fontSize: dynamicTextSize }]}>
+              {type.replace(/-/g, ' ')}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <Text style={[styles.text, { color: Colors[colorScheme].text }]}>Crimes Shown: {filteredCrimes.length}</Text>
+      <Text style={[styles.text, { color: textColor, fontSize: dynamicTextSize }]}>
+        Crimes Shown: {filteredCrimes.length}
+      </Text>
       {riskLevel && (
-        <Text style={[styles.text, { color: riskLevel === 'High' ? 'red' : riskLevel === 'Medium' ? 'orange' : 'green' }]}>
+        <Text
+          style={[
+            styles.text,
+            {
+              color:
+                riskLevel === 'High'
+                  ? 'red'
+                  : riskLevel === 'Medium'
+                  ? 'orange'
+                  : 'green',
+              fontSize: dynamicTextSize,
+            },
+          ]}
+        >
           Risk Level: {riskLevel}
         </Text>
       )}
@@ -239,10 +269,15 @@ const Index = () => {
           showsUserLocation={true}
         >
           {filteredCrimes.map((crime, index) => {
-            const category = crime.category || crime.crime_type;
+            if (!crime) return null;
+            const category = crime.category || crime.crime_type || 'other-crime';
             const pinColor = crimeTypes[category] || 'grey';
-            const latitude = parseFloat(crime.location?.latitude || crime.latitude);
-            const longitude = parseFloat(crime.location?.longitude || crime.longitude);
+            const latitude = parseFloat(
+              crime.location?.latitude || crime.latitude
+            );
+            const longitude = parseFloat(
+              crime.location?.longitude || crime.longitude
+            );
             if (!latitude || !longitude) return null;
             return (
               <Marker
@@ -250,7 +285,11 @@ const Index = () => {
                 coordinate={{ latitude, longitude }}
                 pinColor={pinColor}
                 title={category}
-                description={crime.location?.street?.name || crime.description || 'No description'}
+                description={
+                  crime.location?.street?.name ||
+                  crime.description ||
+                  'No description'
+                }
               />
             );
           })}
