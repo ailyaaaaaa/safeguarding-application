@@ -1,25 +1,34 @@
+// This file handles the settings page. Users can adjust various settings on this page, including the app's theme and font size, the map's crime data source, and notifications for high risk areas.
+
+// Import necessary modules and components. These include: hooks to use state and side effects, components and APIs from React Native to render the UI, retrieving the theme, and using a colour palette.
 import React from 'react';
 import { View, Text, Switch, TouchableOpacity } from 'react-native';
 import { useCommonStyles } from '@/constants/commonStyles';
-import { useSettings } from '@/constants/settingsContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
+// Import files I created for creating a uniform UI using a centralised stylesheet, and a file for retrieving the user's settings.
+import { useSettings } from '@/constants/settingsContext';
+
+// Created a radio group. This is a generic control for picking one of several mutually exclusive options.
 const RadioGroup = ({ options, value, onChange, textColor, dynamicTextSize }) => {
   const styles = useCommonStyles();
   return (
     <View style={styles.radioGroupRow}>
+      {/* Render each radio button option */}
       {options.map(option => (
         <TouchableOpacity
           key={option.value}
           onPress={() => onChange(option.value)}
           style={styles.radioGroupOption}
         >
+          {/* Highlight outer circle if selected */}
           <View
             style={[
               styles.radioOuter,
               value === option.value && styles.radioOuterSelected,
             ]}
           >
+            {/* Only show the inner circle if selected */}
             {value === option.value && <View style={styles.radioInner} />}
           </View>
           <Text style={[styles.radioLabel, { color: textColor, fontSize: dynamicTextSize }]}>
@@ -31,39 +40,48 @@ const RadioGroup = ({ options, value, onChange, textColor, dynamicTextSize }) =>
   );
 };
 
+// Main Settings screen component
 const Settings = () => {
-  const styles = useCommonStyles();
-  const {
-    darkMode,
-    setDarkMode,
-    textSize,
-    setTextSize,
-    crimeSource,
-    setCrimeSource,
-    notifications,
-    setNotifications,
-  } = useSettings();
-
-  const systemTheme = useColorScheme(); // <-- actual system theme, 'light' or 'dark'
-  // True theme: use user's override, or system
+  // Define constants for customisation logic. Retrieve the user's colour and text size preference, apply the theme, apply styles from the global stylesheet, adjust font size, and adjust background and text colour.  
+  const { darkMode, setDarkMode, textSize, setTextSize, crimeSource, setCrimeSource, notifications, setNotifications, } = useSettings();
+  const systemTheme = useColorScheme();
   const effectiveTheme = darkMode === 'system' ? systemTheme : darkMode;
+  const styles = useCommonStyles();
+  
+  const dynamicTextSize = { small: 12, medium: 16, large: 20 }[textSize] || 16;
 
-  const dynamicTextSize = {
-    small: 12,
-    medium: 16,
-    large: 20,
-  }[textSize] || 16;
   const backgroundColor = effectiveTheme === 'dark' ? '#000' : '#fff';
   const textColor = effectiveTheme === 'dark' ? '#fff' : '#000';
 
+  // Render settings categories
   return (
-    <View style={[styles.container, { backgroundColor, alignItems: 'flex-start', paddingHorizontal: 20, paddingTop: 30 }]}>
-      <Text style={[styles.title, { alignSelf: "center", marginBottom: 24, color: textColor, fontSize: dynamicTextSize + 8 }]}>
+    <View style={[
+      styles.container,
+      {
+        backgroundColor,
+        alignItems: 'flex-start',
+        paddingHorizontal: 20,
+        paddingTop: 30,
+      }
+    ]}>
+      {/* Screen title */}
+      <Text style={[
+        styles.title,
+        {
+          alignSelf: "center",
+          marginBottom: 24,
+          color: textColor,
+          fontSize: dynamicTextSize + 8
+        }
+      ]}>
         Settings
       </Text>
 
+      {/* Theme control */}
       <View style={styles.settingGroup}>
-        <Text style={[styles.settingLabel, { color: textColor, fontSize: dynamicTextSize }]}>Dark Mode</Text>
+        <Text style={[styles.settingLabel, { color: textColor, fontSize: dynamicTextSize }]}>
+          Dark Mode:
+        </Text>
         <RadioGroup
           options={[
             { label: "Light", value: "light" },
@@ -77,8 +95,11 @@ const Settings = () => {
         />
       </View>
 
+      {/* Text size control */}
       <View style={styles.settingGroup}>
-        <Text style={[styles.settingLabel, { color: textColor, fontSize: dynamicTextSize }]}>Text Size</Text>
+        <Text style={[styles.settingLabel, { color: textColor, fontSize: dynamicTextSize }]}>
+          Text Size:
+        </Text>
         <RadioGroup
           options={[
             { label: "Small", value: "small" },
@@ -91,9 +112,12 @@ const Settings = () => {
           dynamicTextSize={dynamicTextSize}
         />
       </View>
-
+      
+      {/* Crime data source control */}
       <View style={styles.settingGroup}>
-        <Text style={[styles.settingLabel, { color: textColor, fontSize: dynamicTextSize }]}>Crime Data Source</Text>
+        <Text style={[styles.settingLabel, { color: textColor, fontSize: dynamicTextSize }]}>
+          Crime Data Source:
+        </Text>
         <RadioGroup
           options={[
             { label: "Met Police", value: "met" },
@@ -107,16 +131,23 @@ const Settings = () => {
         />
       </View>
 
+      {/* Notifications toggle: */}
       <View style={styles.settingGroup}>
         <View style={styles.switchRow}>
-          <Text style={[styles.settingLabel, { marginRight: 12, color: textColor, fontSize: dynamicTextSize }]}>
+          <Text style={[
+            styles.settingLabel,
+            { marginRight: 12, color: textColor, fontSize: dynamicTextSize }
+          ]}>
             Notify for High-Risk Areas
           </Text>
           <Switch
             value={notifications}
             onValueChange={setNotifications}
-            thumbColor={notifications ? (effectiveTheme === "dark" ? "#fff" : "#0a7ea4") : "#ccc"}
-            trackColor={{ false: "#767577", true: effectiveTheme === "dark" ? "#444" : "#a3d9f7" }}
+            thumbColor= "#FFF"
+            trackColor={{
+              false: "#767577",
+              true: effectiveTheme === "dark" ? "#444" : "#3478F6"
+            }}
           />
         </View>
       </View>

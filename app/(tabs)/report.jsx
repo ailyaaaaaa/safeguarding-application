@@ -1,36 +1,41 @@
+// This file handles the report page. Here, users can report a crime in their area.
+
+// Import necessary modules and components. These include: hooks to use state and side effects, components and APIs from React Native to render the UI, providing access to device location, retrieving the theme, and using a colour palette.
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, ActivityIndicator, Alert, Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, TouchableOpacity } from 'react-native';
-import * as Location from 'expo-location';
+import { Text, TextInput, ActivityIndicator, Alert, Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, TouchableOpacity, } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import * as Location from 'expo-location';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
+
+// Import files I created for creating a uniform UI using a centralised stylesheet, and a file for retrieving the user's settings.
 import { useCommonStyles } from '@/constants/commonStyles';
 import { useSettings } from '@/constants/settingsContext';
 
 const Report = () => {
-  const { darkMode, textSize } = useSettings();
-  const systemTheme = useColorScheme();
-  const effectiveTheme = darkMode === 'system' ? systemTheme : darkMode;
-
-  const [location, setLocation] = useState(null);
+  // Define constants for the page's functionality. Creates states for the user's location (including street name), date and time, crime type, description, and a loading indicator.
+  const [location, setLocation] = useState(null); 
   const [streetName, setStreetName] = useState('Fetching location...');
-  const [dateTime, setDateTime] = useState(new Date());
+  const [dateTime, setDateTime] = useState(new Date()); 
   const [crimeType, setCrimeType] = useState('anti-social-behaviour');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // Define constants for customisation logic. Retrieve the user's colour and text size preference, apply the theme, apply styles from the global stylesheet, adjust font size, and adjust background and text colour.
+  const { darkMode, textSize } = useSettings();
+  const systemTheme = useColorScheme();
+  const effectiveTheme = darkMode === 'system' ? systemTheme : darkMode;
   const styles = useCommonStyles();
 
-  const dynamicTextSize = {
-    small: 12,
-    medium: 16,
-    large: 20,
-  }[textSize] || 16;
+  const dynamicTextSize = { small: 12, medium: 16, large: 20 }[textSize] || 16;
+
   const backgroundColor = effectiveTheme === 'dark' ? '#000' : '#fff';
   const textColor = effectiveTheme === 'dark' ? '#fff' : '#000';
+
   const inputBackground = effectiveTheme === 'dark' ? '#222' : '#fff';
   const inputTextColor = effectiveTheme === 'dark' ? '#fff' : '#111';
 
+  // Fetch user's location and address for the report (runs initially and when refreshed)
   const updateLocationAndTime = async () => {
     setLoading(true);
     let { status } = await Location.requestForegroundPermissionsAsync();
@@ -39,7 +44,6 @@ const Report = () => {
       setLoading(false);
       return;
     }
-
     let loc = await Location.getCurrentPositionAsync({});
     setLocation(loc.coords);
 
@@ -51,9 +55,8 @@ const Report = () => {
 
       if (address.length > 0) {
         const place = address[0];
-        setStreetName(
-          place.street || place.name || place.district || place.city || place.region || 'Unknown location'
-        );
+        // Try to display the most useful, specific address information available
+        setStreetName( place.street || place.name || place.district || place.city || place.region || 'Unknown location' );
       } else {
         setStreetName('Unknown location');
       }
@@ -66,17 +69,27 @@ const Report = () => {
     setLoading(false);
   };
 
+  // On mount, get current location and address
   useEffect(() => {
     updateLocationAndTime();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  //Reset the form once submitted successfully
+  const resetForm = () => {
+    setCrimeType('anti-social-behaviour');
+    setDescription('');
+    updateLocationAndTime();
+  };
+
+  // Handles sending your crime report to the backend API
   const handleSubmit = async () => {
+    // Return an error if no location
     if (!location) {
       Alert.alert('Error', 'Location not available. Try again later.');
       return;
     }
 
+    // Package up the data as URL query parameters
     const queryParams = new URLSearchParams({
       crime_type: crimeType,
       latitude: location.latitude.toString(),
@@ -88,12 +101,10 @@ const Report = () => {
     const url = `https://doc.gold.ac.uk/usr/697/api/report?${queryParams.toString()}`;
 
     try {
-      const response = await fetch(url, {
-        method: 'GET',
-      });
-
+      const response = await fetch(url, { method: 'GET' });
       if (response.ok) {
         Alert.alert('Success', 'Report submitted successfully.');
+        resetForm();
       } else {
         Alert.alert('Error', 'Failed to submit report.');
       }
@@ -104,8 +115,10 @@ const Report = () => {
   };
 
   return (
+    // Allows keyboard dismissal when clicking outside inputs
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <KeyboardAvoidingView 
+      {/* KeyboardAvoidingView lifts inputs on iOS so they're not hidden */}
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={[styles.container, { backgroundColor }]}
       >
@@ -116,23 +129,26 @@ const Report = () => {
           <ActivityIndicator size="large" color={Colors[systemTheme].tint} />
         )}
 
+        {/* Location/address */}
         <Text style={[styles.label, { color: textColor, fontSize: dynamicTextSize }]}>Location:</Text>
         <Text style={[styles.text, { color: textColor, fontSize: dynamicTextSize }]}>{streetName}</Text>
 
+        {/* Date and time */}
         <Text style={[styles.label, { color: textColor, fontSize: dynamicTextSize }]}>Date & Time:</Text>
-        <Text style={[styles.text, { color: textColor, fontSize: dynamicTextSize }]}>{dateTime.toLocaleString()}</Text>
+        <Text style={[styles.text, { color: textColor, fontSize: dynamicTextSize }]}>
+          {dateTime.toLocaleString()}
+        </Text>
 
-        <TouchableOpacity 
-          style={styles.bluePill} 
-          onPress={updateLocationAndTime}
-        >
+        {/* Allow user to refresh GPS and time */}
+        <TouchableOpacity style={styles.bluePill} onPress={updateLocationAndTime}>
           <Text style={styles.pillButtonText}>Refresh Location & Time</Text>
         </TouchableOpacity>
 
+        {/* Crime type selection dropdown */}
         <Text style={[styles.label, { color: textColor, fontSize: dynamicTextSize }]}>Crime Type:</Text>
         <Picker
           selectedValue={crimeType}
-          onValueChange={(itemValue) => setCrimeType(itemValue)}
+          onValueChange={setCrimeType}
           style={[styles.picker, { fontSize: dynamicTextSize }]}
           dropdownIconColor={textColor}
         >
@@ -146,21 +162,24 @@ const Report = () => {
           <Picker.Item label="Public Order" value="public-order" color={textColor} style={{ fontSize: dynamicTextSize }} />
           <Picker.Item label="Robbery" value="robbery" color={textColor} style={{ fontSize: dynamicTextSize }} />
           <Picker.Item label="Shoplifting" value="shoplifting" color={textColor} style={{ fontSize: dynamicTextSize }} />
-          <Picker.Item label="Theft" value="theft-from-the-person" color={textColor} style={{ fontSize: dynamicTextSize }} />
+          <Picker.Item label="Theft from the Person" value="theft-from-the-person" color={textColor} style={{ fontSize: dynamicTextSize }} />
           <Picker.Item label="Vehicle Crime" value="vehicle-crime" color={textColor} style={{ fontSize: dynamicTextSize }} />
           <Picker.Item label="Violent Crime" value="violent-crime" color={textColor} style={{ fontSize: dynamicTextSize }} />
           <Picker.Item label="Other" value="other-crime" color={textColor} style={{ fontSize: dynamicTextSize }} />
         </Picker>
 
+        {/* Optional description by user */}
         <Text style={[styles.label, { color: textColor, fontSize: dynamicTextSize }]}>Description (Optional):</Text>
         <TextInput
-          style={[styles.input, 
-            { 
-              height: 80, 
-              backgroundColor: inputBackground, 
-              color: inputTextColor, 
-              fontSize: dynamicTextSize 
-            }]}
+          style={[
+            styles.input,
+            {
+              height: 80,
+              backgroundColor: inputBackground,
+              color: inputTextColor,
+              fontSize: dynamicTextSize,
+            },
+          ]}
           multiline
           value={description}
           onChangeText={setDescription}
@@ -168,10 +187,8 @@ const Report = () => {
           placeholderTextColor={effectiveTheme === 'dark' ? "#999" : "#888"}
         />
 
-        <TouchableOpacity 
-          style={styles.redPill} 
-          onPress={handleSubmit}
-        >
+        {/* Submit the report */}
+        <TouchableOpacity style={styles.redPill} onPress={handleSubmit}>
           <Text style={styles.pillButtonText}>Submit Report</Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>

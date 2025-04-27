@@ -1,50 +1,28 @@
-# Welcome to your Expo app 👋
+# Safeguarding App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+This is a mobile app built with [Expo](https://expo.dev) `SDK 52` and React Native.  
+It displays nearby crime data, displays risk levels, and provides useful emergency info, helping users stay safer in their surroundings.
 
-## Get started
+## Getting Started
 
-1. Install dependencies
+### 1. Clone the repository
 
-   ```bash
-   npm install
-   ```
+git clone <your-repo-url>
+cd <your-project-folder>
 
-2. Start the app
+### 2. Install dependencies
+npm install
 
-   ```bash
-    npx expo start
-   ```
+### 3. Start the development server
+npx expo start
 
-In the output, you'll find options to open the app in a
+You can open the app in either an emulator, or on Expo Go on your phone.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Features
+- View nearby crimes based on your location,
+- See risk levels based on crime data,
+- Get notified when entering high-risk areas,
+- Interactive map with crime markers,
+- User report feature that updates the map,
+- Emergenct contact information for the country you're in,
+- Customisable settings.
