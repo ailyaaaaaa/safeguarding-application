@@ -2,7 +2,7 @@
 
 // Import necessary modules and components. These include: hooks to use state and side effects, components and APIs from React Native to render the UI, retrieving the theme, and using a colour palette.
 import React from 'react';
-import { View, Text, Switch, TouchableOpacity } from 'react-native';
+import { View, Text, Switch, TouchableOpacity, Linking } from 'react-native';
 import { useCommonStyles } from '@/constants/commonStyles';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
@@ -150,6 +150,23 @@ const Settings = () => {
             }}
           />
         </View>
+      </View>
+      <View>
+        <TouchableOpacity onPress={() => Linking.openURL("https://doc.gold.ac.uk/usr/697/")}>
+          <Text style={{ color: '#3478F6', fontSize: dynamicTextSize, marginBottom: 12 }}>
+            User Report API Information
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => Linking.openURL("https://github.com/ailyaaaaaa/safeguarding-application")}>
+          <Text style={{ color: '#3478F6', fontSize: dynamicTextSize, marginBottom: 12 }}>
+            Github for Application
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => Linking.openURL("https://github.com/ailyaaaaaa/safeguarding-application")}>
+          <Text style={{ color: '#3478F6', fontSize: dynamicTextSize }}>
+            GitHub for User Report API
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
