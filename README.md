@@ -1,6 +1,6 @@
 # Safeguarding App
 
-This is a mobile app built with [Expo](https://expo.dev) SDK 52` and [React Native](https://reactnative.dev).  
+This is a mobile app built with [Expo](https://expo.dev) SDK 52 and [React Native](https://reactnative.dev).  
 It displays nearby crime data, displays risk levels, and provides useful emergency info, helping users stay safer in their surroundings.
 
 ## Getting Started
